@@ -1,9 +1,5 @@
 import { Props, Key, Ref, ReactElementType } from 'shared/ReactTypes';
-import {
-	FunctionComponent,
-	HostComponent,
-	WorkTag
-} from 'react-reconciler/src/workTags';
+import { FunctionComponent, HostComponent, WorkTag } from './workTags';
 import { Flags, NoFlags } from './filberFlags';
 import { Container } from 'hostConfig';
 

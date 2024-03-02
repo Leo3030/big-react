@@ -34,7 +34,6 @@ const appendPlacementNodeIntoContainer = (
 	finishedWork: FiberNode,
 	hostParent: Container
 ) => {
-	console.log('finishedWork: ', finishedWork);
 	if (finishedWork.tag === HostComponent || finishedWork.tag === HostText) {
 		appendChildToContainer(hostParent, finishedWork.stateNode);
 		return;
