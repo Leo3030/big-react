@@ -27,46 +27,47 @@ const ReactElement = function (
 	return element;
 };
 
-export const jsx = function (
-	type: ElementType,
-	config: any,
-	...maybeChildren: any
-) {
+export const jsx = (type: ElementType, config: any, ...maybeChildren: any) => {
 	let key: Key = null;
-	let ref: Ref = null;
 	const props: Props = {};
+	let ref: Ref = null;
 
 	for (const prop in config) {
 		const val = config[prop];
-
 		if (prop === 'key') {
 			if (val !== undefined) {
 				key = '' + val;
 			}
 			continue;
 		}
-
 		if (prop === 'ref') {
 			if (val !== undefined) {
 				ref = val;
 			}
-
 			continue;
 		}
-
 		if ({}.hasOwnProperty.call(config, prop)) {
 			props[prop] = val;
 		}
-
-		if (maybeChildren && maybeChildren.length === 1) {
-			props.child = maybeChildren[0];
-		} else if (maybeChildren && maybeChildren.length > 1) {
-			props.child = maybeChildren;
+	}
+	const maybeChildrenLength = maybeChildren.length;
+	if (maybeChildrenLength) {
+		if (maybeChildrenLength === 1) {
+			props.children = maybeChildren[0];
+		} else {
+			props.children = maybeChildren;
 		}
 	}
-
 	return ReactElement(type, key, ref, props);
 };
+
+export function isValidElement(object: any) {
+	return (
+		typeof object === 'object' &&
+		object !== null &&
+		object.$$typeof === REACT_ELEMENT_TYPE
+	);
+}
 
 export const jsxDEV = function (type: ElementType, config: any) {
 	let key: Key = null;
