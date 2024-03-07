@@ -94,7 +94,6 @@ function markUpdateFromFiberFiber(fiber: FiberNode) {
 }
 
 function renderRoot(root: FiberRootNode) {
-	console.log(112);
 	// 初始化
 	prepareFreshStack(root);
 	do {

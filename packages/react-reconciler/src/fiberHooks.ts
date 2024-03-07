@@ -40,6 +40,8 @@ export function renderWithHooks(wip: FiberNode) {
 
 	//重置操作
 	currentRenderFiber = null;
+	workInProgressHook = null;
+	currentHook = null;
 	return child;
 }
 
