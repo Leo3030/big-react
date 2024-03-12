@@ -1,41 +1,28 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom/client';
+import ReactDOM from 'react-dom';
 // import App from "./App.js";
 // const root = ReactDOM.createRoot(document.getElementById("root"));
 // root.render(<App />);
 
-const App = () => {
-	const [num, updateNum] = useState(0);
-	useEffect(() => {
-		console.log('App mount');
-	}, []);
-
-	useEffect(() => {
-		console.log('num change create', num);
-		return () => {
-			console.log('num change destroy', num);
-		};
-	}, [num]);
-
+function App() {
+	const [num, update] = useState(100);
 	return (
-		<div onClick={() => updateNum(num + 1)}>
-			{num === 0 ? <Child /> : 'noop'}
-		</div>
+		<ul onClick={() => update(50)}>
+			{new Array(num).fill(0).map((_, i) => {
+				return <Child key={i}>{i}</Child>;
+			})}
+		</ul>
 	);
-};
-
-function Child() {
-	useEffect(() => {
-		console.log('Child mount');
-		return () => console.log('Child unmount');
-	}, []);
-
-	return 'i am child';
 }
 
-const root = document.getElementById('root') as HTMLElement;
-ReactDOM.createRoot(root).render(<App />);
+function Child({ children }) {
+	const now = performance.now();
+	while (performance.now() - now < 4) {}
+	return <li>{children}</li>;
+}
+const root = ReactDOM.createRoot(document.querySelector('#root'));
+root.render(<App />);
 
 // console.log(React);
 // console.log(jsx);

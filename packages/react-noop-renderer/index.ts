@@ -1,3 +1,3 @@
-import * as ReactDom from './src/root';
+import * as ReactNoopRenderer from './src/root';
 
-export default ReactDom;
+export default ReactNoopRenderer;

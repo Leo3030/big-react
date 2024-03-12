@@ -1,7 +1,9 @@
 import internals from 'shared/internals';
 import { FiberNode } from './fiber';
 import { Dispatch, Dispatcher } from 'react/src/currentDispatcher';
+import currentBatchConfig from 'react/src/currentBatchConfig';
 import {
+	Update,
 	UpdateQueue,
 	createUpdate,
 	createUpdateQueue,
@@ -72,16 +74,20 @@ interface Hook {
 	memoizedState: any;
 	updateQueue: unknown;
 	next: Hook | null;
+	baseState: any;
+	baseQueue: Update<any> | null;
 }
 
 const HooksDispatchOnMount: Dispatcher = {
 	useState: mountState,
-	useEffect: mountEffect
+	useEffect: mountEffect,
+	useTransition: mountTransition
 };
 
 const HooksDispatchOnUpdate: Dispatcher = {
 	useState: updateState,
-	useEffect: updateEffect
+	useEffect: updateEffect,
+	useTransition: updateTransition
 };
 
 function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
@@ -195,6 +201,7 @@ function mountState<State>(
 
 	hook.updateQueue = queue;
 	hook.memoizedState = memoizedState;
+	hook.baseState = memoizedState;
 	// @ts-ignore
 	const dispatch = dispatchSetState.bind(null, currentRenderFiber, queue);
 	queue.dispatch = dispatch;
@@ -207,19 +214,65 @@ function updateState<State>(): [State, Dispatch<State>] {
 	const hook = updateWorkInProgressHook();
 	// 计算新state的逻辑
 	const queue = hook.updateQueue as UpdateQueue<State>;
-	const pending = queue.shared.pending;
-	queue.shared.pending = null;
+	const baseState = hook.baseState;
 
+	console.log('currentHook: ', currentHook);
+	const pending = queue.shared.pending;
+	const current = currentHook as Hook;
+	let baseQueue = current.baseQueue;
 	if (pending !== null) {
-		const { memoizedState } = processUpadteQueue(
-			hook.memoizedState,
-			pending,
-			renderLane
-		);
+		if (baseQueue !== null) {
+			const baseFirst = baseQueue.next;
+			const pendingFirst = pending.next;
+			pending.next = baseFirst;
+			pending.next = pendingFirst;
+		}
+
+		baseQueue = pending;
+		current.baseQueue = pending;
+		queue.shared.pending = null;
+	}
+
+	if (baseQueue !== null) {
+		const {
+			memoizedState,
+			baseQueue: newBaseQueue,
+			baseState: newBaseState
+		} = processUpadteQueue(baseState, baseQueue, renderLane);
 		hook.memoizedState = memoizedState;
+		hook.baseQueue = newBaseQueue;
+		hook.baseState = newBaseState;
 	}
 
 	return [hook.memoizedState, queue.dispatch as Dispatch<State>];
+}
+
+function mountTransition(): [boolean, (callback: () => void) => void] {
+	const [isPending, setPending] = mountState(false);
+	const hook = mountWorkInProgressHook();
+
+	const start = startTransition.bind(null, setPending);
+	hook.memoizedState = start;
+	return [isPending, start];
+}
+
+function updateTransition(): [boolean, (callback: () => void) => void] {
+	const [isPending] = updateState();
+	const hook = updateWorkInProgressHook();
+
+	const start = hook.memoizedState;
+
+	return [isPending as boolean, start];
+}
+
+function startTransition(setPending: Dispatch<boolean>, callback: () => void) {
+	setPending(true);
+	const prevTransition = currentBatchConfig.transition;
+	currentBatchConfig.transition = 1;
+
+	callback();
+	setPending(false);
+	currentBatchConfig.transition = prevTransition;
 }
 
 function dispatchSetState<State>(
@@ -234,7 +287,13 @@ function dispatchSetState<State>(
 }
 
 function mountWorkInProgressHook(): Hook {
-	const hook: Hook = { memoizedState: null, updateQueue: null, next: null };
+	const hook: Hook = {
+		memoizedState: null,
+		updateQueue: null,
+		next: null,
+		baseQueue: null,
+		baseState: null
+	};
 
 	if (workInProgressHook === null) {
 		// mount时 第一个hook
@@ -282,7 +341,9 @@ function updateWorkInProgressHook(): Hook {
 	const newHook: Hook = {
 		memoizedState: currentHook.memoizedState,
 		updateQueue: currentHook.updateQueue,
-		next: null
+		next: null,
+		baseQueue: currentHook.baseQueue,
+		baseState: currentHook.baseState
 	};
 
 	if (workInProgressHook === null) {

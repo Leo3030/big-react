@@ -1,30 +1,72 @@
-import { DOMElement, updateFiberProps } from 'react-dom/src/SyntheticEvent';
 import { FiberNode } from 'react-reconciler/src/fiber';
 import { HostText } from 'react-reconciler/src/workTags';
+import { Props } from 'shared/ReactTypes';
 
-export type Container = Element;
-export type Instance = Element;
-export type TextInstance = Text;
+export interface Container {
+	rootID: number;
+	children: (Instance | TextInstance)[];
+}
+
+export interface Instance {
+	id: number;
+	type: string;
+	children: (Instance | TextInstance)[];
+	parent: number;
+	props: Props;
+}
+
+export interface TextInstance {
+	id: number;
+	text: string;
+	parent: number;
+}
+
+let instanceCounter = 0;
 
 export const createInstance = (type: string, props: any): Instance => {
-	// todo: 处理props
-	const element = document.createElement(type) as unknown;
-	updateFiberProps(element as DOMElement, props);
-	return element as DOMElement;
+	const instance = {
+		id: instanceCounter++,
+		type,
+		children: [],
+		parent: -1,
+		props
+	};
+
+	return instance;
 };
 
 export const appendInitialChild = (
 	parent: Instance | Container,
 	child: Instance
 ) => {
-	parent.appendChild(child);
+	//id
+	const prevParentID = child.parent;
+	const parentID = 'rootID' in parent ? parent.rootID : parent.id;
+	if (prevParentID !== -1 && prevParentID !== parentID) {
+		throw new Error('不能重复挂载child');
+	}
+	child.parent = parentID;
+	parent.children.push(child);
 };
 
 export const createTextInstance = (content: string) => {
-	return document.createTextNode(content);
+	const instance = {
+		text: content,
+		id: instanceCounter++,
+		parent: -1
+	};
+	return instance;
 };
 
-export const appendChildToContainer = appendInitialChild;
+export const appendChildToContainer = (parent: Container, child: Instance) => {
+	//id
+	const prevParentID = child.parent;
+	if (prevParentID !== -1 && prevParentID !== parent.rootID) {
+		throw new Error('不能重复挂载child');
+	}
+	child.parent = parent.rootID;
+	parent.children.push(child);
+};
 
 // Q: 为什么commit Update要在这里实现
 export const commitUpdate = (fiber: FiberNode) => {
@@ -46,14 +88,19 @@ export const commitTextUpdate = (
 	textInstance: TextInstance,
 	content: string
 ) => {
-	textInstance.textContent = content;
+	textInstance.text = content;
 };
 
 export const removeChild = (
 	child: Instance | TextInstance,
 	container: Container
 ) => {
-	container.removeChild(child);
+	const index = container.children.indexOf(child);
+	if (index === -1) {
+		throw new Error('child不存在');
+	}
+
+	container.children.splice(index, 1);
 };
 
 export function insertChildToContainer(
@@ -61,7 +108,15 @@ export function insertChildToContainer(
 	container: Container,
 	before: Instance
 ) {
-	container.insertBefore(child, before);
+	const beforeIndex = container.children.indexOf(before);
+	if (beforeIndex === -1) {
+		throw new Error('before不存在');
+	}
+	const index = container.children.indexOf(before);
+	if (index !== -1) {
+		container.children.splice(index, 1);
+	}
+	container.children.splice(beforeIndex, 0, child);
 }
 
 export const scheduleMicroTask =

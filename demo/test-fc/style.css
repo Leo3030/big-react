@@ -1,0 +1,19 @@
+span {
+	word-break: break-all;
+}
+
+.pri-1 {
+	color: blueviolet;
+}
+
+.pri-2 {
+	color: red;
+}
+
+.pri-3 {
+	color: blue;
+}
+
+.pri-4 {
+	color: green;
+}
