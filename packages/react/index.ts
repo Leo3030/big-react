@@ -20,6 +20,11 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 	return dispatcher.useTransition();
 };
 
+export const useRef: Dispatcher['useRef'] = (initalVal) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.useRef(initalVal);
+};
+
 export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRE = {
 	currentDispatcher,
 	currentBatchConfig

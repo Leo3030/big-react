@@ -17,7 +17,7 @@ export class FiberNode {
 	pendingProps: Props;
 	key: Key | null;
 	stateNode: any;
-	ref: Ref;
+	ref: Ref | null;
 
 	return: FiberNode | null;
 	sibling: FiberNode | null;
@@ -31,6 +31,8 @@ export class FiberNode {
 	subtreeFlags: Flags;
 	updateQueue: unknown;
 	deletions: FiberNode[] | null;
+
+	// lanes: Lanes;
 
 	constructor(tag: WorkTag, pendingProps: Props, key: Key) {
 		// 实例属性
@@ -57,10 +59,14 @@ export class FiberNode {
 		this.updateQueue = null;
 
 		this.alternate = null;
+
 		// 副作用
 		this.flags = NoFlags;
 		this.subtreeFlags = NoFlags;
 		this.deletions = null;
+
+		// // 调度
+		// this.lanes = NoLane;
 	}
 }
 
@@ -120,6 +126,7 @@ export function createWorkInProgress(
 	wip.type = current.type;
 	wip.updateQueue = current.updateQueue;
 	wip.child = current.child;
+	wip.ref = current.ref;
 	wip.memoizedProps = current.memoizedProps;
 	wip.memoizedState = current.memoizedState;
 
@@ -127,7 +134,7 @@ export function createWorkInProgress(
 }
 
 export function createFiberFromElement(element: ReactElementType): FiberNode {
-	const { type, key, props } = element;
+	const { type, key, props, ref } = element;
 	let fiberTag: WorkTag = FunctionComponent;
 
 	if (typeof type === 'string') {
@@ -139,6 +146,7 @@ export function createFiberFromElement(element: ReactElementType): FiberNode {
 
 	const fiber = new FiberNode(fiberTag, props, key);
 	fiber.type = type;
+	fiber.ref = ref;
 	return fiber;
 }
 

@@ -81,14 +81,29 @@ interface Hook {
 const HooksDispatchOnMount: Dispatcher = {
 	useState: mountState,
 	useEffect: mountEffect,
-	useTransition: mountTransition
+	useTransition: mountTransition,
+	useRef: mountRef
 };
 
 const HooksDispatchOnUpdate: Dispatcher = {
 	useState: updateState,
 	useEffect: updateEffect,
-	useTransition: updateTransition
+	useTransition: updateTransition,
+	useRef: updateRef
 };
+
+// re = useRef(init)
+function mountRef<T>(initalVal: T): { current: T } {
+	const hook = mountWorkInProgressHook();
+	const ref = { current: initalVal };
+	hook.memoizedState = ref;
+	return ref;
+}
+
+function updateRef<T>(): { current: T } {
+	const hook = updateWorkInProgressHook();
+	return hook.memoizedState;
+}
 
 function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
 	// 找到当前useState对应的hook数据

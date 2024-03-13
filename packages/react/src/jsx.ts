@@ -73,7 +73,7 @@ export const Fragment = REACT_FRAGMENT_TYPE;
 
 export const jsxDEV = function (type: ElementType, config: any) {
 	let key: Key = null;
-	let ref: Ref = null;
+	let ref: Ref | null = null;
 	const props: Props = {};
 
 	for (const prop in config) {
