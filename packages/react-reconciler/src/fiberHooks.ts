@@ -10,11 +10,13 @@ import {
 	enqueueUpdateQueue,
 	processUpadteQueue
 } from './updateQueue';
-import { Action } from 'shared/ReactTypes';
+import { Action, ReactContext, Thenable, Useable } from 'shared/ReactTypes';
 import { scheduleUpdateOnFiber } from './workLoop';
-import { Lane, NoLane, requestUpdateLane } from './fiberLanes';
-import { Flags, PassiveEffect } from './filberFlags';
+import { Lane, NoLane, mergeLanes, requestUpdateLane } from './fiberLanes';
+import { Flags, PassiveEffect } from './fiberFlags';
 import { HookHasEffect, Passive } from './hookEffectTags';
+import { REACT_CONTEXT_TYPE } from 'shared/ReactSymbols';
+import { trackUseThenable } from './thenable';
 
 let currentRenderFiber: FiberNode | null = null;
 let workInProgressHook: Hook | null = null;
@@ -82,14 +84,18 @@ const HooksDispatchOnMount: Dispatcher = {
 	useState: mountState,
 	useEffect: mountEffect,
 	useTransition: mountTransition,
-	useRef: mountRef
+	useRef: mountRef,
+	useContext: readContext,
+	use
 };
 
 const HooksDispatchOnUpdate: Dispatcher = {
 	useState: updateState,
 	useEffect: updateEffect,
 	useTransition: updateTransition,
-	useRef: updateRef
+	useRef: updateRef,
+	useContext: readContext,
+	use
 };
 
 // re = useRef(init)
@@ -231,7 +237,6 @@ function updateState<State>(): [State, Dispatch<State>] {
 	const queue = hook.updateQueue as UpdateQueue<State>;
 	const baseState = hook.baseState;
 
-	console.log('currentHook: ', currentHook);
 	const pending = queue.shared.pending;
 	const current = currentHook as Hook;
 	let baseQueue = current.baseQueue;
@@ -253,7 +258,12 @@ function updateState<State>(): [State, Dispatch<State>] {
 			memoizedState,
 			baseQueue: newBaseQueue,
 			baseState: newBaseState
-		} = processUpadteQueue(baseState, baseQueue, renderLane);
+		} = processUpadteQueue(baseState, baseQueue, renderLane, (update) => {
+			const skippedLane = update.lane;
+			const fiber = currentRenderFiber as FiberNode;
+			// NoLane
+			fiber.lanes = mergeLanes(fiber.lanes, skippedLane);
+		});
 		hook.memoizedState = memoizedState;
 		hook.baseQueue = newBaseQueue;
 		hook.baseState = newBaseState;
@@ -297,7 +307,8 @@ function dispatchSetState<State>(
 ) {
 	const lane = requestUpdateLane();
 	const update = createUpdate(action, lane);
-	enqueueUpdateQueue(updateQueue, update);
+
+	enqueueUpdateQueue(updateQueue, update, fiber, lane);
 	scheduleUpdateOnFiber(fiber, lane);
 }
 
@@ -377,4 +388,33 @@ function updateWorkInProgressHook(): Hook {
 	}
 
 	return workInProgressHook;
+}
+
+function readContext<T>(context: ReactContext<T>): T {
+	const consumer = currentRenderFiber;
+	if (consumer === null) {
+		throw new Error('只能在函数组件中调用useContext');
+	}
+
+	const value = context._currentValue;
+	return value;
+}
+
+export function use<T>(useable: Useable<T>): T {
+	if (useable !== null && typeof useable === 'object') {
+		if (typeof (useable as Thenable<T>).then === 'function') {
+			//thenable
+			const thenable = useable as Thenable<T>;
+			return trackUseThenable(thenable);
+		} else if ((useable as ReactContext<T>).$$typeof === REACT_CONTEXT_TYPE) {
+			const context = useable as ReactContext<T>;
+			return readContext(context);
+		}
+	}
+	throw new Error('不支持的use参数' + useable);
+}
+export function resetHooksOnUnwind(wip: FiberNode) {
+	currentRenderFiber = null;
+	currentHook = null;
+	workInProgressHook = null;
 }

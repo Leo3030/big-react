@@ -7,7 +7,7 @@ import {
 	createWorkInProgress
 } from './fiber';
 import { Fragment, HostText } from './workTags';
-import { ChildDeletion, Placement } from './filberFlags';
+import { ChildDeletion, Placement } from './fiberFlags';
 
 type ExistingChildren = Map<string | number, FiberNode>;
 
@@ -193,9 +193,14 @@ function ChildReconciler(shouldTrackEffect: boolean) {
 		index: number,
 		element: any
 	): FiberNode | null {
-		const keyToUse = element.key !== null ? element.key : index;
+		const keyToUse = element?.key ? element?.key : index;
 		const before = existingChildren.get(keyToUse);
-		if (typeof element === 'string' || typeof element === 'number') {
+		if (
+			typeof element === 'string' ||
+			typeof element === 'number' ||
+			element === undefined ||
+			element === null
+		) {
 			//hostText
 			if (before) {
 				if (before.tag === HostText) {

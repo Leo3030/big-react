@@ -1,6 +1,7 @@
 import { Dispatch } from 'react/src/currentDispatcher';
 import { Action } from 'shared/ReactTypes';
-import { Lane, NoLane, isSubsetOfLanes } from './fiberLanes';
+import { Lane, NoLane, isSubsetOfLanes, mergeLanes } from './fiberLanes';
+import { FiberNode } from './fiber';
 
 export interface Update<State> {
 	action: Action<State>;
@@ -34,7 +35,9 @@ export const createUpdateQueue = <State>() => {
 
 export const enqueueUpdateQueue = <State>(
 	updateQueue: UpdateQueue<State>,
-	update: Update<State>
+	update: Update<State>,
+	fiber: FiberNode,
+	lane: Lane
 ) => {
 	const pending = updateQueue.shared.pending;
 	if (pending === null) {
@@ -46,12 +49,19 @@ export const enqueueUpdateQueue = <State>(
 		pending.next = update;
 	}
 	updateQueue.shared.pending = update;
+	fiber.lanes = mergeLanes(fiber.lanes, lane);
+	const alternate = fiber.alternate;
+
+	if (alternate !== null) {
+		alternate.lanes = mergeLanes(alternate.lanes, lane);
+	}
 };
 
 export const processUpadteQueue = <State>(
 	baseState: State,
 	pendingUpdate: Update<State> | null,
-	renderLane: Lane
+	renderLane: Lane,
+	onSkipUpdate?: <State>(update: Update<State>) => void
 ): {
 	memoizedState: State;
 	baseState: State;
@@ -79,6 +89,7 @@ export const processUpadteQueue = <State>(
 				// 	console.error('不应该进入这个逻辑');
 				// }
 				const clone = createUpdate(pending.action, pending.lane);
+				onSkipUpdate?.(clone);
 				//是不是第一个被跳过的update
 				if (newBaseQueueFirst === null) {
 					newBaseQueueFirst = clone;

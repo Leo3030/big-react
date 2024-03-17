@@ -7,7 +7,7 @@
 		"lint": "eslint --ext .js,.ts,.jsx,.tsx --fix --quiet ./packages",
 		"prepare": "husky",
 		"build:dev": "rm -rf dist && rollup --bundleConfigAsCjs --config scripts/rollup/dev.config.js",
-		"demo": "vite serve demo/ref --config scripts/vite/vite.config.js --force",
+		"demo": "vite serve demo/performance --config scripts/vite/vite.config.js --force",
 		"test": "jest --config scripts/jest/jest.config.js"
 	},
 	"keywords": [],

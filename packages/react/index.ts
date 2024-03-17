@@ -4,6 +4,12 @@ import currentDispatcher, {
 	resolveDispatcher
 } from './src/currentDispatcher';
 import currentBatchConfig from './src/currentBatchConfig';
+import { Useable } from 'shared/ReactTypes';
+export {
+	REACT_SUSPENSE_TYPE as Suspense,
+	REACT_FRAGMENT_TYPE as Fragment
+} from 'shared/ReactSymbols';
+export { createContext } from './src/context';
 
 export const useState: Dispatcher['useState'] = (initialState: any) => {
 	const dispatcher = resolveDispatcher();
@@ -23,6 +29,16 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 export const useRef: Dispatcher['useRef'] = (initalVal) => {
 	const dispatcher = resolveDispatcher();
 	return dispatcher.useRef(initalVal);
+};
+
+export const useContext: Dispatcher['useContext'] = (context) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.useContext(context);
+};
+
+export const use: Dispatcher['use'] = <T>(useable: Useable<T>) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.use(useable);
 };
 
 export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRE = {

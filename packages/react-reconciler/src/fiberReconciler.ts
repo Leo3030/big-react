@@ -27,7 +27,9 @@ export function updateContainer(
 	const update = createUpdate<ReactElementType | null>(element, lane);
 	enqueueUpdateQueue(
 		hostRootFiber.updateQueue as UpdateQueue<ReactElementType | null>,
-		update
+		update,
+		hostRootFiber,
+		lane
 	);
 	scheduleUpdateOnFiber(hostRootFiber, lane);
 

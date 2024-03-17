@@ -12,9 +12,14 @@ import {
 	FunctionComponent,
 	HostComponent,
 	HostRoot,
-	HostText
+	HostText,
+	OffscreenComponent,
+	SuspenseComponent
 } from './workTags';
-import { NoFlags, Ref, Update } from './filberFlags';
+import { NoFlags, Ref, Update, Visibility } from './fiberFlags';
+import { popProvider } from './fiberContext';
+import { popSuspenseHandler } from './suspenseContext';
+import { NoLanes, mergeLanes } from './fiberLanes';
 
 function markUpdate(fiber: FiberNode) {
 	fiber.flags |= Update;
@@ -70,9 +75,31 @@ export const completeWork = (wip: FiberNode) => {
 		case HostRoot:
 		case FunctionComponent:
 		case Fragment:
+		case OffscreenComponent:
 			bubbleProperties(wip);
 			return null;
 		case ContextProvider:
+			const context = wip.type._context;
+			popProvider(context);
+			bubbleProperties(wip);
+			return null;
+		case SuspenseComponent:
+			popSuspenseHandler();
+			const offscreenFiber = wip.child as FiberNode;
+			const isHidden = offscreenFiber?.pendingProps.mode === 'hidden';
+			const currentOffscreenFiber = offscreenFiber.alternate;
+			if (currentOffscreenFiber !== null) {
+				// update
+				const wasHidden = currentOffscreenFiber.pendingProps.mode === 'hidden';
+				if (isHidden !== wasHidden) {
+					offscreenFiber.flags |= Visibility;
+					bubbleProperties(offscreenFiber);
+				}
+			} else if (isHidden) {
+				// mount时hidden
+				offscreenFiber.flags |= Visibility;
+				bubbleProperties(offscreenFiber);
+			}
 			bubbleProperties(wip);
 			return null;
 		default:
@@ -113,16 +140,24 @@ function appendAllChildren(parent: Container | Instance, wip: FiberNode) {
 function bubbleProperties(wip: FiberNode) {
 	let subtreeFlags = NoFlags;
 	let child = wip.child;
+	let newChildLanes = NoLanes;
 
 	while (child !== null) {
 		subtreeFlags |= child.subtreeFlags;
 		subtreeFlags |= child.flags;
 
+		newChildLanes = mergeLanes(
+			newChildLanes,
+			mergeLanes(child.lanes, child.childLanes)
+		);
+
 		child.return = wip;
 		child = child.sibling;
 	}
 	wip.subtreeFlags |= subtreeFlags;
+	wip.childLanes = newChildLanes;
 }
+
 function markRef(fiberNode: FiberNode) {
 	fiberNode.flags |= Ref;
 }
