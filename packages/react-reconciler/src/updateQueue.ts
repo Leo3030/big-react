@@ -7,6 +7,8 @@ export interface Update<State> {
 	action: Action<State>;
 	lane: Lane;
 	next: Update<any> | null;
+	hasEagerState: boolean;
+	eagerState: State | null;
 }
 
 export interface UpdateQueue<State> {
@@ -16,11 +18,18 @@ export interface UpdateQueue<State> {
 	dispatch: Dispatch<State> | null;
 }
 
-export const createUpdate = <State>(action: Action<State>, lane: Lane) => {
+export const createUpdate = <State>(
+	action: Action<State>,
+	lane: Lane,
+	hasEagerState = false,
+	eagerState: State | null = null
+) => {
 	return {
 		action,
 		lane,
-		next: null
+		next: null,
+		hasEagerState,
+		eagerState
 	};
 };
 
@@ -107,12 +116,10 @@ export const processUpadteQueue = <State>(
 					newBaseQueueLast = clone;
 				}
 				const action = pendingUpdate.action;
-				if (action instanceof Function) {
-					// baseState: 1 pendingUpdate: (x) => 4x result: 4
-					newState = action(baseState);
+				if (pending.hasEagerState) {
+					newState = pending.eagerState;
 				} else {
-					// baseState: 1 pendingUpdate: 2 result: 2
-					newState = action;
+					newState = basicStateReducer(baseState, action);
 				}
 			}
 			pending = pending?.next as Update<any>;
@@ -131,3 +138,16 @@ export const processUpadteQueue = <State>(
 
 	return result;
 };
+
+export function basicStateReducer<State>(
+	state: State,
+	action: Action<State>
+): State {
+	if (action instanceof Function) {
+		// baseState: 1 pendingUpdate: (x) => 4x result: 4
+		return action(state);
+	} else {
+		// baseState: 1 pendingUpdate: 2 result: 2
+		return action;
+	}
+}
