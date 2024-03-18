@@ -249,7 +249,7 @@ function renderRoot(root: FiberRootNode, lane: Lane, shouldTimeSlice: boolean) {
 		// 初始化
 		prepareFreshStack(root, lane);
 	}
-
+	// let c = 0;
 	do {
 		try {
 			if (wipSuspendedReason !== NotSuspended && workInProgress !== null) {
@@ -266,6 +266,13 @@ function renderRoot(root: FiberRootNode, lane: Lane, shouldTimeSlice: boolean) {
 			if (__DEV__) {
 				console.warn('Work Loop发生错误', e);
 			}
+			// c++;
+			// console.log(c);
+			// if (c > 20) {
+			// 	console.warn('break');
+			// 	break;
+			// }
+
 			handleThrow(root, e);
 			// 可以处理Error Boundary
 		}

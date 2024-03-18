@@ -14,6 +14,7 @@ import {
 	HostComponent,
 	HostRoot,
 	HostText,
+	MemoComponent,
 	OffscreenComponent,
 	SuspenseComponent
 } from './workTags';
@@ -33,6 +34,7 @@ import {
 } from './fiberFlags';
 import { pushProvider } from './fiberContext';
 import { pushSuspenseHandler } from './suspenseContext';
+import { shallowEqual } from 'shared/shallowEqual';
 
 let didReceiveUpdate = false;
 
@@ -89,7 +91,7 @@ export const beginWork = (wip: FiberNode, renderLane: Lane) => {
 		case HostText:
 			return null;
 		case FunctionComponent:
-			return updateFuncComponent(wip, renderLane);
+			return updateFuncComponent(wip, renderLane, wip.type);
 		case Fragment:
 			return updateFragment(wip);
 		case ContextProvider:
@@ -98,6 +100,8 @@ export const beginWork = (wip: FiberNode, renderLane: Lane) => {
 			return updateSuspenseComponent(wip);
 		case OffscreenComponent:
 			return updateOffscreenComponent(wip);
+		case MemoComponent:
+			return updateMemoComponent(wip, renderLane);
 		default:
 			if (__DEV__) {
 				console.warn('begin work未实现的类型');
@@ -107,6 +111,30 @@ export const beginWork = (wip: FiberNode, renderLane: Lane) => {
 
 	return null;
 };
+
+function updateMemoComponent(wip: FiberNode, renderLane: Lane) {
+	//bailout四要素
+	//props浅比较
+	const current = wip.alternate;
+	const nextProps = wip.pendingProps;
+	const Component = wip.type.type;
+
+	if (current !== null) {
+		const prevProps = current.memoizedProps;
+		// 浅比较props
+		if (shallowEqual(prevProps, nextProps) && current.ref === wip.ref) {
+			didReceiveUpdate = false;
+			wip.pendingProps = prevProps;
+			//state\context
+			if (!checkScheduleUpdateOrContext(current, renderLane)) {
+				//满足四要素
+				wip.lanes = current.lanes;
+				return bailoutOnAlreadyFinishWork(wip, renderLane);
+			}
+		}
+	}
+	return updateFuncComponent(wip, renderLane, Component);
+}
 
 function bailoutOnAlreadyFinishWork(wip: FiberNode, renderLane: Lane) {
 	if (!includeSomeLanes(wip.childLanes, renderLane)) {
@@ -308,9 +336,13 @@ function updateOffscreenComponent(wip: FiberNode) {
 	return wip.child;
 }
 
-function updateFuncComponent(wip: FiberNode, renderLane: Lane) {
+function updateFuncComponent(
+	wip: FiberNode,
+	renderLane: Lane,
+	Component: FiberNode['type']
+) {
 	//render
-	const nextChildren = renderWithHooks(wip, renderLane);
+	const nextChildren = renderWithHooks(wip, renderLane, Component);
 	const current = wip.alternate;
 	if (current !== null && !didReceiveUpdate) {
 		bailoutHook(wip, renderLane);

@@ -10,6 +10,7 @@ export {
 	REACT_FRAGMENT_TYPE as Fragment
 } from 'shared/ReactSymbols';
 export { createContext } from './src/context';
+export { memo } from './src/memo';
 
 export const useState: Dispatcher['useState'] = (initialState: any) => {
 	const dispatcher = resolveDispatcher();

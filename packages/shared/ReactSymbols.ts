@@ -19,3 +19,7 @@ export const REACT_PROVIDER_TYPE = isSupportSymbol
 export const REACT_SUSPENSE_TYPE = isSupportSymbol
 	? Symbol.for('react.suspense')
 	: 0xeac3;
+
+export const REACT_MEMO_TYPE = isSupportSymbol
+	? Symbol.for('react.memo')
+	: 0xead3;
