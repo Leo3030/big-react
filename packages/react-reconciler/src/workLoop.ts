@@ -308,7 +308,7 @@ function throwAndUnwindWorkLoop(
 	lane: Lane
 ) {
 	// 重置FC 全局变量
-	resetHooksOnUnwind(unitOfWork);
+	resetHooksOnUnwind();
 	// 请求返回后重新触发更新
 	throwException(root, throwValue, lane);
 	// unwind

@@ -5,6 +5,7 @@ import currentDispatcher, {
 } from './src/currentDispatcher';
 import currentBatchConfig from './src/currentBatchConfig';
 import { Useable } from 'shared/ReactTypes';
+import { HookDeps } from 'react-reconciler/src/fiberHooks';
 export {
 	REACT_SUSPENSE_TYPE as Suspense,
 	REACT_FRAGMENT_TYPE as Fragment
@@ -40,6 +41,22 @@ export const useContext: Dispatcher['useContext'] = (context) => {
 export const use: Dispatcher['use'] = <T>(useable: Useable<T>) => {
 	const dispatcher = resolveDispatcher();
 	return dispatcher.use(useable);
+};
+
+export const useMemo: Dispatcher['useMemo'] = <T>(
+	nextCreate: () => T,
+	deps: HookDeps | undefined
+) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.useMemo(nextCreate, deps);
+};
+
+export const useCallback: Dispatcher['useCallback'] = <T>(
+	callback: T,
+	deps: HookDeps | undefined
+) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.useCallback(callback, deps);
 };
 
 export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRE = {

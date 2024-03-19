@@ -26,6 +26,7 @@ import { HookHasEffect, Passive } from './hookEffectTags';
 import { REACT_CONTEXT_TYPE } from 'shared/ReactSymbols';
 import { trackUseThenable } from './thenable';
 import { markWipReceivedUpdate } from './beginWork';
+import { readContext as readContextOrigin } from './fiberContext';
 
 let currentRenderFiber: FiberNode | null = null;
 let workInProgressHook: Hook | null = null;
@@ -38,7 +39,7 @@ export interface Effect {
 	tag: Flags;
 	create: EffectCallback | void;
 	destroy: EffectCallback | void;
-	deps: EffectDeps;
+	deps: HookDeps;
 	next: Effect | null;
 }
 
@@ -48,7 +49,12 @@ export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 }
 
 type EffectCallback = () => void;
-type EffectDeps = any[] | null;
+export type HookDeps = any[] | null;
+
+function readContext<Value>(context: ReactContext<Value>): Value {
+	const consumer = currentRenderFiber as FiberNode;
+	return readContextOrigin(consumer, context);
+}
 
 export function renderWithHooks(
 	wip: FiberNode,
@@ -99,6 +105,8 @@ const HooksDispatchOnMount: Dispatcher = {
 	useTransition: mountTransition,
 	useRef: mountRef,
 	useContext: readContext,
+	useMemo: mountMemo,
+	useCallback: mountCallback,
 	use
 };
 
@@ -108,6 +116,8 @@ const HooksDispatchOnUpdate: Dispatcher = {
 	useTransition: updateTransition,
 	useRef: updateRef,
 	useContext: readContext,
+	useMemo: updateMemo,
+	useCallback: updateCallback,
 	use
 };
 
@@ -124,7 +134,7 @@ function updateRef<T>(): { current: T } {
 	return hook.memoizedState;
 }
 
-function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
+function mountEffect(create: EffectCallback | void, deps: HookDeps | void) {
 	// 找到当前useState对应的hook数据
 	const hook = mountWorkInProgressHook();
 	const nextDeps = deps === undefined ? null : deps;
@@ -138,7 +148,7 @@ function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
 	);
 }
 
-function updateEffect(create: EffectCallback | void, deps: EffectDeps | void) {
+function updateEffect(create: EffectCallback | void, deps: HookDeps | void) {
 	// 找到当前useState对应的hook数据
 	const hook = updateWorkInProgressHook();
 	const nextDeps = deps === undefined ? null : deps;
@@ -166,7 +176,7 @@ function updateEffect(create: EffectCallback | void, deps: EffectDeps | void) {
 	}
 }
 
-function areHookInputsEuqal(nextDeps: EffectDeps, prevDeps: EffectDeps) {
+function areHookInputsEuqal(nextDeps: HookDeps, prevDeps: HookDeps) {
 	if (nextDeps === null || prevDeps === null) {
 		return false;
 	}
@@ -185,7 +195,7 @@ const pushEffect = (
 	hookFlags: Flags,
 	create: EffectCallback | void,
 	destroy: EffectCallback | void,
-	deps: EffectDeps
+	deps: HookDeps
 ): Effect => {
 	// effect自己会形成一个环状链表
 	const effect: Effect = { tag: hookFlags, create, destroy, deps, next: null };
@@ -432,16 +442,6 @@ function updateWorkInProgressHook(): Hook {
 	return workInProgressHook;
 }
 
-function readContext<T>(context: ReactContext<T>): T {
-	const consumer = currentRenderFiber;
-	if (consumer === null) {
-		throw new Error('只能在函数组件中调用useContext');
-	}
-
-	const value = context._currentValue;
-	return value;
-}
-
 export function use<T>(useable: Useable<T>): T {
 	if (useable !== null && typeof useable === 'object') {
 		if (typeof (useable as Thenable<T>).then === 'function') {
@@ -455,7 +455,7 @@ export function use<T>(useable: Useable<T>): T {
 	}
 	throw new Error('不支持的use参数' + useable);
 }
-export function resetHooksOnUnwind(wip: FiberNode) {
+export function resetHooksOnUnwind() {
 	currentRenderFiber = null;
 	currentHook = null;
 	workInProgressHook = null;
@@ -467,4 +467,51 @@ export function bailoutHook(wip: FiberNode, renderLane: Lane) {
 	wip.flags &= ~PassiveEffect;
 
 	current.lanes = removeLanes(current?.lanes, renderLane);
+}
+
+export function mountCallback<T>(callback: T, deps: HookDeps | undefined) {
+	const hook = mountWorkInProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	hook.memoizedState = [callback, nextDeps];
+	return callback;
+}
+
+export function updateCallback<T>(callback: T, deps: HookDeps | undefined) {
+	const hook = updateWorkInProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+
+	const prevState = hook.memoizedState;
+	if (nextDeps !== null) {
+		const prevDeps = prevState[1];
+		if (areHookInputsEuqal(prevDeps, nextDeps)) {
+			return prevState[0];
+		}
+	}
+	hook.memoizedState = [callback, nextDeps];
+	return callback;
+}
+
+export function mountMemo<T>(nextCreate: () => T, deps: HookDeps | undefined) {
+	const hook = mountWorkInProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	const nextValue = nextCreate();
+	hook.memoizedState = [nextValue, nextDeps];
+	return nextValue;
+}
+
+export function updateMemo<T>(nextCreate: () => T, deps: HookDeps | undefined) {
+	const hook = updateWorkInProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+
+	const prevState = hook.memoizedState;
+
+	if (nextDeps !== null) {
+		const prevDeps = prevState[1];
+		if (areHookInputsEuqal(prevDeps, nextDeps)) {
+			return prevState[0];
+		}
+	}
+	const nextValue = nextCreate();
+	hook.memoizedState = [nextValue, nextDeps];
+	return nextValue;
 }
